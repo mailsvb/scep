@@ -1422,6 +1422,7 @@ static int scep_pkiMessage_encrypt(BIO *input, BIO *output, X509 *recipient)
 static PKCS7 *scep_pkiMessage_seal(
         struct scep *scep,
         BIO *payload,
+        X509* subject,
         X509 *recipient,
         X509 *signer,
         EVP_PKEY *signkey,
@@ -1437,6 +1438,11 @@ static PKCS7 *scep_pkiMessage_seal(
     }
 
     if (PKCS7_set_type(pkcs7, NID_pkcs7_signed) != 1) {
+        PKCS7_free(pkcs7);
+        return NULL;
+    }
+
+    if (PKCS7_add_certificate(pkcs7, subject) != 1) {
         PKCS7_free(pkcs7);
         return NULL;
     }
@@ -1653,6 +1659,7 @@ static PKCS7 *scep_CertRep_seal(
     pkcs7 = scep_pkiMessage_seal(
             scep,
             payload,
+            subject,
             req->m->signer,
             scep->cert,
             scep->pkey,

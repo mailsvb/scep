@@ -25,6 +25,11 @@
 #define static_assert(x) _Static_assert((x), #x)
 #endif
 
+struct scep_CertRep {
+    PKCS7 *pkcs7; /* Owned by this */
+    X509 *cert; /* Owned by this */
+};
+
 struct context {
     const char *challenge_password;
     long allow_renew_days;
@@ -664,10 +669,7 @@ static unsigned int handle_PKIOperation(
     time_t now;
     int ret;
     int cpr;
-
-#ifndef NDEBUG
     char buffer[1024];
-#endif
 
     now = time(NULL);
     scep = ctx->scep;
@@ -699,21 +701,15 @@ static unsigned int handle_PKIOperation(
     cp = scep_PKCSReq_get_challengePassword(req);
     signer = scep_PKCSReq_get_current_certificate(req);
 
-#ifndef NDEBUG
-    if (X509_NAME_oneline(X509_REQ_get_subject_name(csr),
-                          buffer, sizeof(buffer))) {
-
+    if (X509_NAME_oneline(X509_REQ_get_subject_name(csr), buffer, sizeof(buffer))) {
         LOGD("scep: CSR subject: %s", buffer);
     }
 
     if (signer) {
-        if (X509_NAME_oneline(X509_get_subject_name(signer),
-                              buffer, sizeof(buffer))) {
-
+        if (X509_NAME_oneline(X509_get_subject_name(signer), buffer, sizeof(buffer))) {
             LOGD("scep: signer subject: %s", buffer);
         }
     }
-#endif
 
     ret = validate(now, ctx, csr, cp, signer, &challenged);
     if (ret < 0) {
