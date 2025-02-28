@@ -525,6 +525,7 @@ static unsigned int handle_GetCACaps(
             "AES\n"
             "POSTPKIOperation\n"
             "Renewal\n"
+            "SHA-1\n"
             "SHA-256\n"
             "SHA-512\n"
             "SCEPStandard");
@@ -918,14 +919,12 @@ int main(int argc, char *argv[])
     struct scep *scep;
     sigset_t empty;
     uint16_t port;
-    int trans_id;
     int exposed;
     size_t i;
     int cfrm;
     int lfrm;
     int kfrm;
     int ofrm;
-    int san;
     int ret;
     int c;
 
@@ -947,9 +946,7 @@ int main(int argc, char *argv[])
         { "chainform",  required_argument, NULL, 'L' },
         { "otherca",    required_argument, NULL, 'o' },
         { "othercaform",required_argument, NULL, 'O' },
-        { "trans_id",   no_argument,       NULL, 'T' },
         { "exposed_cp", no_argument,       NULL, 'E' },
-        { "set_san",    no_argument,       NULL, 'A' },
         { "help",       no_argument,       NULL, 'h' },
         { NULL, 0, NULL, 0 }
     };
@@ -976,9 +973,7 @@ int main(int argc, char *argv[])
     const char *arg_cfrm = "pem";
     const char *arg_kfrm = "pem";
 
-    san = 0;
     exposed = 0;
-    trans_id = 0;
     arg_links = 0;
     arg_othrs = 0;
     for (i = 0; i < sizeof(arg_link) / sizeof(*arg_link); ++i) {
@@ -1004,8 +999,6 @@ int main(int argc, char *argv[])
         case 'd': arg_dpot = optarg; break;
         case 'e': arg_exts = optarg; break;
         case 'E': exposed  =      1; break;
-        case 'T': trans_id =      1; break;
-        case 'A': san      =      1; break;
 
         case 'L': arg_lfrm[arg_links] = optarg; break;
         case 'l':
@@ -1046,8 +1039,6 @@ int main(int argc, char *argv[])
     }
 
     ctx.challenge_password = arg_chlg;
-    configure.set_subject_alternative_name = san;
-    configure.no_validate_transaction_id = trans_id;
     configure.tolerate_exposed_challenge_password = exposed;
 
     if (atoport(arg_port, &port)                 ||
