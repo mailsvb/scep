@@ -13,6 +13,7 @@
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
+#include <openssl/core_names.h>
 
 #include <microhttpd.h>
 
@@ -236,29 +237,24 @@ static int generate_challenge_password(
 {
     unsigned char key[SHA256_DIGEST_LENGTH];
     struct token token;
-    unsigned int hlen;
+    size_t hlen;
     BUF_MEM *bptr;
-    HMAC_CTX *ctx;
     BIO *bp;
+    EVP_MAC *mac = NULL;
+    EVP_MAC_CTX *ctx = NULL;
+    OSSL_PARAM params[2];
 
     if (hash(EVP_sha256(), secret, key)) {
         return -1;
     }
 
-    ctx = HMAC_CTX_new();
-    if (!ctx) {
-        return -1;
-    }
-
     bp = BIO_new(BIO_s_mem());
     if (!bp) {
-        HMAC_CTX_free(ctx);
         return -1;
     }
 
     if (X509_NAME_print_ex(bp, name, 0, XN_FLAG_RFC2253) == -1) {
         BIO_free_all(bp);
-        HMAC_CTX_free(ctx);
         return -1;
     }
 
@@ -267,18 +263,38 @@ static int generate_challenge_password(
     token.timestamp = timestamp;
     token.nonce = nonce;
 
-    if (HMAC_Init_ex(ctx, key, sizeof(key), EVP_sha256(), NULL) != 1          ||
-        HMAC_Update(ctx, (unsigned char *)&timestamp, sizeof(timestamp)) != 1 ||
-        HMAC_Update(ctx, (unsigned char *)&nonce, sizeof(nonce)) != 1         ||
-        HMAC_Update(ctx, (unsigned char *)bptr->data, bptr->length) != 1      ||
-        HMAC_Final(ctx, token.hmac, &hlen) != 1                               ){
-
-        HMAC_CTX_free(ctx);
+    mac = EVP_MAC_fetch(NULL, "HMAC", NULL);
+    if (!mac) {
         BIO_free_all(bp);
         return -1;
     }
 
-    HMAC_CTX_free(ctx);
+    ctx = EVP_MAC_CTX_new(mac);
+    if (!ctx) {
+        EVP_MAC_free(mac);
+        BIO_free_all(bp);
+        return -1;
+    }
+
+    // Set up parameters for HMAC
+    params[0] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST, "SHA256", 0);
+    params[1] = OSSL_PARAM_construct_end();
+
+    // Initialize HMAC with key and parameters
+    if (EVP_MAC_init(ctx, key, sizeof(key), params) != 1 ||
+        EVP_MAC_update(ctx, (unsigned char *)&timestamp, sizeof(timestamp)) != 1 ||
+        EVP_MAC_update(ctx, (unsigned char *)&nonce, sizeof(nonce)) != 1 ||
+        EVP_MAC_update(ctx, (unsigned char *)bptr->data, bptr->length) != 1 ||
+        EVP_MAC_final(ctx, token.hmac, &hlen, sizeof(token.hmac)) != 1) {
+
+        EVP_MAC_CTX_free(ctx);
+        EVP_MAC_free(mac);
+        BIO_free_all(bp);
+        return -1;
+    }
+
+    EVP_MAC_CTX_free(ctx);
+    EVP_MAC_free(mac);
     BIO_free_all(bp);
 
     hex(&token, sizeof(token), output);
@@ -439,7 +455,7 @@ static int check_duplicate(
         return 1;
     }
 
-    if (EVP_PKEY_cmp(pkey, csrkey) != 1) {
+    if (EVP_PKEY_eq(pkey, csrkey) != 1) {
         X509_free(x509);
         return 1;
     }
