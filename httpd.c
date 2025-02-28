@@ -354,7 +354,7 @@ static MHD_RESULT httpd_handler(
     (void)url;
     (void)version;
 
-    printf("http: %s request received\n", method);
+    LOGI("http: %s request received", method);
 
     request = (struct request *)*con_cls;
     if (!request) {
@@ -405,7 +405,7 @@ static MHD_RESULT httpd_handler(
     }
 
     operation = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "operation");
-    printf("http: operation %s\n", operation);
+    LOGI("http: operation %s", operation);
 
     if (!operation || !*operation) {
         return httpd_standard_response(connection,
@@ -433,7 +433,7 @@ static MHD_RESULT httpd_handler(
                 MHD_HTTP_METHOD_NOT_ALLOWED,
                 method, FALSE);
     }
-    printf("http: preparing response\n");
+
     response = BIO_new(BIO_s_mem());
     if (!response) {
         return MHD_NO;
@@ -441,9 +441,8 @@ static MHD_RESULT httpd_handler(
 
     rct = NULL;
     httpd = (struct httpd *)cls;
-    status = httpd->handler(httpd->context, operation,
-            request->payload, &rct, response);
-    printf("http: status %d\n", status);
+    status = httpd->handler(httpd->context, operation, request->payload, &rct, response);
+    LOGI("http: status %d", status);
     BIO_get_mem_ptr(response, &bptr);
     switch (status) {
     case MHD_HTTP_FOUND:
@@ -546,7 +545,7 @@ int httpd_start(struct httpd *httpd)
     if (!httpd->daemon) {
         return -1;
     }
-    printf("http server listening on port %d\n", httpd->port);
+    LOGI("http server listening on port %d", httpd->port);
     return 0;
 }
 
