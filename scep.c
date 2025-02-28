@@ -1099,53 +1099,6 @@ void scep_pkiMessage_free(struct scep_pkiMessage *m)
     free(m);
 }
 
-static int scep_unhex_one(unsigned char c)
-{
-    if (c >= '0' && c <= '9') {
-        return c - '0';
-    } else if (c >= 'A' && c <= 'F') {
-        return c - 'A' + 10;
-    } else if (c >= 'a' && c <= 'f') {
-        return c - 'a' + 10;
-    } else {
-        return -1;
-    }
-}
-
-static int scep_unhex(unsigned char *s, unsigned int len, unsigned char *o)
-{
-    unsigned int i;
-    int h;
-    int l;
-    for (i = 0; i < len; i += 2) {
-        h = scep_unhex_one(s[i + 0]);
-        l = scep_unhex_one(s[i + 1]);
-        if (h < 0 || l < 0) {
-            return -1;
-        }
-
-        o[i / 2] = (unsigned char)(h * 16 + l);
-    }
-
-    return 0;
-}
-
-static void scep_hex(const void *buffer, size_t length, void *output)
-{
-    static const char H[] = "0123456789ABCDEF";
-    const unsigned char *in;
-    char *out;
-    size_t i;
-
-    in = (const unsigned char *)buffer;
-    out = (char *)output;
-
-    for (i = 0; i < length; ++i) {
-        out[i * 2 + 0] = H[in[i] / 16];
-        out[i * 2 + 1] = H[in[i] % 16];
-    }
-}
-
 static int scep_verify(X509_STORE *store, X509 *subject)
 {
     X509_STORE_CTX *ctx;
